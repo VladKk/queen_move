@@ -26,6 +26,8 @@ private slots:
 
     void switchView();
 
+    void switchMode();
+
     void actions();
 
 private:
@@ -36,6 +38,8 @@ private:
     QPushButton *getButtonFromGrid(int x, int y);
 
     void clearBoard(QPushButton *btn);
+
+    bool findSquareName(const QString &squareName);
 };
 
 #endif //QUEEN_MOVE_MAIN_WIN_H

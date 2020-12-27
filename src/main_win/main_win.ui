@@ -85,6 +85,25 @@
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
+         <widget class="QComboBox" name="modeSelector">
+          <item>
+           <property name="text">
+            <string>Select mode</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Free Mode</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Game Mode</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item>
          <spacer name="verticalSpacer">
           <property name="orientation">
            <enum>Qt::Vertical</enum>

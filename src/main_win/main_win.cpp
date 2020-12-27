@@ -1,8 +1,11 @@
 #include <QDebug>
 #include <QMessageBox>
+#include <QRegularExpressionValidator>
 
 #include "main_win.h"
 #include "./ui_main_win.h"
+
+// TODO: obstacle system
 
 MainWin::MainWin(QWidget *parent)
         : QMainWindow(parent),
@@ -19,6 +22,8 @@ MainWin::MainWin(QWidget *parent)
             connect(getButtonFromGrid(i, j), SIGNAL(pressed()), this, SLOT(getAvailableSquaresGraphicalView()));
     }
 
+    connect(ui->modeSelector, SIGNAL(currentIndexChanged(int)), this, SLOT(switchMode()));
+
     connect(ui->radioButtonTextView, SIGNAL(toggled(bool)), this, SLOT(switchView()));
     connect(ui->radioButtonGraphicalView, SIGNAL(toggled(bool)), this, SLOT(switchView()));
 
@@ -34,6 +39,9 @@ MainWin::MainWin(QWidget *parent)
     ui->queenPlacement->setPlaceholderText("Enter here queen position");
 
     emit ui->radioButtonTextView->toggled(true);
+
+    ui->modeSelector->setCurrentIndex(0);
+    switchMode();
 }
 
 MainWin::~MainWin() {
@@ -42,15 +50,20 @@ MainWin::~MainWin() {
 }
 
 void MainWin::getAvailableSquaresTextView() {
-    std::pair<uint8_t, uint8_t> queenPos = Board::parseSquareNameToMatrixPos(ui->queenPlacement->text());
-
     if (ui->queenPlacement->text().isEmpty()) {
         ui->statusBar->showMessage("Enter square name!", 5000);
         return;
     }
 
-    if ((queenPos.first == 0 && queenPos.second == 0) || ui->queenPlacement->text().size() > 2) {
-        ui->statusBar->showMessage("Invalid square name!", 5000);
+    QPair<uint8_t, uint8_t> queenPos = Board::parseSquareNameToMatrixPos(ui->queenPlacement->text());
+
+    bool validMove;
+
+    validMove = MainWin::findSquareName(ui->queenPlacement->text());
+
+    if (ui->modeSelector->currentIndex() == 2 && !validMove && !ui->availableSquares->toPlainText().isEmpty()) {
+        qDebug() << "Invalid move!";
+        ui->statusBar->showMessage("Invalid move!", 5000);
         return;
     }
 
@@ -103,13 +116,19 @@ void MainWin::getAvailableSquaresGraphicalView() {
 
     for (int i = 0; i < BOARD_SIZE; ++i) {
         for (int j = 0; j < BOARD_SIZE; ++j) {
+            btn = getButtonFromGrid(i + 1, j + 1);
+
             if (brd->getMBoard()(i, j)) {
                 qDebug() << "(" << i << ", " << j << ")";
 
-                btn = getButtonFromGrid(i + 1, j + 1);
                 btn->setStyleSheet("background-color: red;");
-                btn->update();
+                btn->setEnabled(true);
             }
+
+            if (ui->modeSelector->currentIndex() == 2 && !brd->getMBoard()(i, j))
+                btn->setDisabled(true);
+
+            btn->update();
         }
     }
 }
@@ -150,6 +169,70 @@ void MainWin::switchView() {
         ui->statusBar->showMessage("Switch gone wrong!", 5000);
         return;
     }
+}
+
+void MainWin::switchMode() {
+    QPushButton *square;
+
+    switch (ui->modeSelector->currentIndex()) {
+        case 0:
+            ui->radioButtonTextView->setDisabled(true);
+            ui->radioButtonGraphicalView->setDisabled(true);
+            ui->queenPlacement->setDisabled(true);
+            ui->buttonGetSquares->setDisabled(true);
+            ui->availableSquares->setDisabled(true);
+
+            for (int i = 1; i <= BOARD_SIZE; ++i) {
+                for (int j = 1; j <= BOARD_SIZE; ++j) {
+                    square = getButtonFromGrid(i, j);
+                    square->setDisabled(true);
+                }
+            }
+
+            ui->queenPlacement->setValidator(nullptr);
+
+            break;
+        case 1:
+        case 2:
+            ui->radioButtonGraphicalView->setEnabled(true);
+            ui->radioButtonTextView->setEnabled(true);
+            ui->queenPlacement->setEnabled(true);
+            ui->buttonGetSquares->setEnabled(true);
+            ui->availableSquares->setEnabled(true);
+
+            for (int i = 1; i <= BOARD_SIZE; ++i) {
+                for (int j = 1; j <= BOARD_SIZE; ++j) {
+                    square = getButtonFromGrid(i, j);
+                    square->setEnabled(true);
+                }
+            }
+
+            if (ui->radioButtonTextView->isChecked())
+                    emit ui->radioButtonTextView->toggled(true);
+            else if (ui->radioButtonGraphicalView->isChecked())
+                    emit ui->radioButtonGraphicalView->toggled(true);
+            else {
+                qDebug() << "Invalid view!";
+                ui->statusBar->showMessage("Invalid view!", 5000);
+                return;
+            }
+
+            // TODO: add this regex for obstacles ^[A-H|a-h][1-8](\s\[([A-H|a-h][1-8],\s)*[A-H|a-h][1-8]\])?$
+
+            ui->queenPlacement->setValidator(
+                    new QRegularExpressionValidator(QRegularExpression("^[A-H|a-h][1-8]$"), this));
+
+            break;
+        default:
+            qDebug() << "Invalid mode!";
+            ui->statusBar->showMessage("Invalid mode!", 5000);
+            return;
+    }
+
+    ui->availableSquares->clear();
+    ui->queenPlacement->clear();
+
+    clearBoard(square);
 }
 
 void MainWin::actions() {
@@ -206,4 +289,17 @@ QPushButton *MainWin::getButtonFromGrid(int x, int y) {
     auto *button = dynamic_cast<QPushButton *>(widget);
 
     return button;
+}
+
+bool MainWin::findSquareName(const QString &squareName) {
+    QPair<uint8_t, uint8_t> squarePos = Board::parseSquareNameToMatrixPos(squareName);
+
+    for (uint8_t i = 0; i < BOARD_SIZE; ++i) {
+        for (uint8_t j = 0; j < BOARD_SIZE; ++j) {
+            if (brd->getMBoard()(squarePos.first, squarePos.second))
+                return true;
+        }
+    }
+
+    return false;
 }
