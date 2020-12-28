@@ -17,6 +17,7 @@ MainWin::MainWin(QWidget *parent)
 
     connect(ui->buttonGetSquares, SIGNAL(pressed()), this, SLOT(getAvailableSquaresTextView()));
 
+    // Connect all the squares to slot (start from [1;1] because first row and column are square marks)
     for (int i = 1; i <= BOARD_SIZE; ++i) {
         for (int j = 1; j <= BOARD_SIZE; ++j)
             connect(getButtonFromGrid(i, j), SIGNAL(pressed()), this, SLOT(getAvailableSquaresGraphicalView()));
@@ -38,8 +39,10 @@ MainWin::MainWin(QWidget *parent)
 
     ui->queenPlacement->setPlaceholderText("Enter here queen position");
 
+    // Toggle text view
     emit ui->radioButtonTextView->toggled(true);
 
+    // Unselect any of modes
     ui->modeSelector->setCurrentIndex(0);
     switchMode();
 }
@@ -50,21 +53,26 @@ MainWin::~MainWin() {
 }
 
 void MainWin::getAvailableSquaresTextView() {
+    // Check if user entered text
     if (ui->queenPlacement->text().isEmpty()) {
         ui->statusBar->showMessage("Enter square name!", 5000);
         return;
     }
 
+    // Get queen position
     QPair<uint8_t, uint8_t> queenPos = Board::parseSquareNameToMatrixPos(ui->queenPlacement->text());
 
-    bool validMove;
+    // Check if next move is valid (used only for game mode)
+    if (ui->modeSelector->currentIndex() == 2) {
+        bool validMove;
 
-    validMove = MainWin::findSquareName(ui->queenPlacement->text());
+        validMove = MainWin::findSquareName(ui->queenPlacement->text());
 
-    if (ui->modeSelector->currentIndex() == 2 && !validMove && !ui->availableSquares->toPlainText().isEmpty()) {
-        qDebug() << "Invalid move!";
-        ui->statusBar->showMessage("Invalid move!", 5000);
-        return;
+        if (!validMove && !ui->availableSquares->toPlainText().isEmpty()) {
+            qDebug() << "Invalid move!";
+            ui->statusBar->showMessage("Invalid move!", 5000);
+            return;
+        }
     }
 
     qDebug() << "Queen Pos: " << ui->queenPlacement->text() << " (string), " << queenPos << " (matrix pos)";
@@ -76,6 +84,7 @@ void MainWin::getAvailableSquaresTextView() {
 
     ui->availableSquares->setText("Available moves:\n");
 
+    // Get all available moves and parse them to square name
     for (int i = 0; i < BOARD_SIZE; ++i) {
         for (int j = 0; j < BOARD_SIZE; ++j) {
             if (brd->getMBoard()(i, j)) {
@@ -95,6 +104,7 @@ void MainWin::getAvailableSquaresGraphicalView() {
     QPair<int, int> buttonPos;
     auto *square = (QPushButton *) sender();
 
+    // Get position of pressed button in grid ([--i; --j] for board)
     ui->gridLayout->getItemPosition(ui->gridLayout->indexOf(square), &buttonPos.first, &buttonPos.second, &_, &_);
     --buttonPos.first;
     --buttonPos.second;
@@ -108,12 +118,14 @@ void MainWin::getAvailableSquaresGraphicalView() {
 
     clearBoard(btn);
 
+    // Set crown icon on pressed button
     btn = getButtonFromGrid(buttonPos.first + 1, buttonPos.second + 1);
     btn->setIcon(QIcon(":/icons/crown.ico"));
     btn->setIconSize(QSize(48, 48));
 
     qDebug() << "Available moves:";
 
+    // Get all available moves and color appropriate buttons in red
     for (int i = 0; i < BOARD_SIZE; ++i) {
         for (int j = 0; j < BOARD_SIZE; ++j) {
             btn = getButtonFromGrid(i + 1, j + 1);
@@ -125,6 +137,7 @@ void MainWin::getAvailableSquaresGraphicalView() {
                 btn->setEnabled(true);
             }
 
+            // If game mode is selected, disable other buttons
             if (ui->modeSelector->currentIndex() == 2 && !brd->getMBoard()(i, j))
                 btn->setDisabled(true);
 
@@ -138,6 +151,7 @@ void MainWin::switchView() {
 
     QPushButton *square = nullptr;
 
+    // Disable board and enable text input/output
     if (btn == ui->radioButtonTextView) {
         clearBoard(square);
 
@@ -151,7 +165,9 @@ void MainWin::switchView() {
         ui->queenPlacement->setEnabled(true);
         ui->availableSquares->setEnabled(true);
         ui->buttonGetSquares->setEnabled(true);
-    } else if (btn == ui->radioButtonGraphicalView) {
+    }
+     // Disable text input/output and enable board
+    else if (btn == ui->radioButtonGraphicalView) {
         ui->availableSquares->clear();
         ui->queenPlacement->clear();
         ui->availableSquares->setDisabled(true);
@@ -164,7 +180,9 @@ void MainWin::switchView() {
                 square->setEnabled(true);
             }
         }
-    } else {
+    }
+    // Something gone wrong
+    else {
         qDebug() << "Switch gone wrong!";
         ui->statusBar->showMessage("Switch gone wrong!", 5000);
         return;
@@ -175,6 +193,7 @@ void MainWin::switchMode() {
     QPushButton *square;
 
     switch (ui->modeSelector->currentIndex()) {
+        // All modes are unselected (disable everything)
         case 0:
             ui->radioButtonTextView->setDisabled(true);
             ui->radioButtonGraphicalView->setDisabled(true);
@@ -192,6 +211,8 @@ void MainWin::switchMode() {
             ui->queenPlacement->setValidator(nullptr);
 
             break;
+
+        // One of the modes was selected (enable everything and choose either text or graphical view)
         case 1:
         case 2:
             ui->radioButtonGraphicalView->setEnabled(true);
@@ -219,16 +240,20 @@ void MainWin::switchMode() {
 
             // TODO: add this regex for obstacles ^[A-H|a-h][1-8](\s\[([A-H|a-h][1-8],\s)*[A-H|a-h][1-8]\])?$
 
+            // Set validator for valid text input
             ui->queenPlacement->setValidator(
                     new QRegularExpressionValidator(QRegularExpression("^[A-H|a-h][1-8]$"), this));
 
             break;
+
+        // Something gone wrong
         default:
             qDebug() << "Invalid mode!";
             ui->statusBar->showMessage("Invalid mode!", 5000);
             return;
     }
 
+    // Clear everything
     ui->availableSquares->clear();
     ui->queenPlacement->clear();
 
@@ -238,27 +263,36 @@ void MainWin::switchMode() {
 void MainWin::actions() {
     auto *action = (QAction *) sender();
 
+    // Show information about author
     if (action == ui->actionAbout_Author) {
         QMessageBox::information(this, "Queen Move",
                                  "Find me in the Web!\n"
                                  "Telegram: @vlad_is_real\n"
                                  "GMail: vladislav.kolyadenko@gmail.com\n"
                                  "Instagram: @ncks_gwc");
-    } else if (action == ui->actionAbout_Program) {
+    }
+    // Show information about program
+    else if (action == ui->actionAbout_Program) {
         QMessageBox::information(this, "Queen Move",
                                  "Simple program to calculate available moves for queen\n"
                                  "May have a lot of bugs and mistakes\n"
                                  "Used technologies:\n"
                                  "C++, Qt, CMake");
-    } else if (action == ui->actionRefresh) {
+    }
+    // Clear all
+    else if (action == ui->actionRefresh) {
         QPushButton *btn = nullptr;
 
         ui->availableSquares->clear();
         ui->queenPlacement->clear();
 
         clearBoard(btn);
-    } else if (action == ui->actionExit)
+    }
+    // Exit the program
+    else if (action == ui->actionExit)
         QApplication::quit();
+
+    // Something gone wrong
     else {
         qDebug() << "Invalid action!";
         ui->statusBar->showMessage("Invalid action!", 5000);
@@ -267,6 +301,7 @@ void MainWin::actions() {
 }
 
 void MainWin::clearBoard(QPushButton *btn) {
+    // Delete crown icon and return previous colors to buttons
     for (int i = 1; i <= BOARD_SIZE; ++i) {
         for (int j = 1; j <= BOARD_SIZE; ++j) {
             btn = getButtonFromGrid(i, j);
@@ -284,6 +319,7 @@ void MainWin::clearBoard(QPushButton *btn) {
 }
 
 QPushButton *MainWin::getButtonFromGrid(int x, int y) {
+    // Get button from grid using its position
     QLayoutItem *item = ui->gridLayout->itemAtPosition(x, y);
     QWidget *widget = item->widget();
     auto *button = dynamic_cast<QPushButton *>(widget);
@@ -294,6 +330,7 @@ QPushButton *MainWin::getButtonFromGrid(int x, int y) {
 bool MainWin::findSquareName(const QString &squareName) {
     QPair<uint8_t, uint8_t> squarePos = Board::parseSquareNameToMatrixPos(squareName);
 
+    // Check if entered square name is presented in valid moves
     for (uint8_t i = 0; i < BOARD_SIZE; ++i) {
         for (uint8_t j = 0; j < BOARD_SIZE; ++j) {
             if (brd->getMBoard()(squarePos.first, squarePos.second))

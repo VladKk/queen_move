@@ -1,11 +1,6 @@
 #ifndef QUEEN_MOVE_BOARD_H
 #define QUEEN_MOVE_BOARD_H
 
-#include <utility>
-#include <cstdint>
-#include <string>
-#include <list>
-
 #include <QString>
 #include <QGenericMatrix>
 
@@ -29,6 +24,7 @@ public:
     const QGenericMatrix<BOARD_SIZE, BOARD_SIZE, bool> &getMBoard() const;
 
 private:
+    // Use board as matrix
     QGenericMatrix<BOARD_SIZE, BOARD_SIZE, bool> m_board;
 };
 
